@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Factory Production AI</title>
+<style>
+body{
+  margin:0;
+  font-family:system-ui,Segoe UI,Roboto;
+  background:#0b1320;
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+header{
+  background:#0f1b33;
+  padding:12px;
+  text-align:center;
+  font-weight:600;
+  font-size:18px;
+  box-shadow:0 2px 8px rgba(0,0,0,.4);
+}
+#chat{
+  flex:1;
+  overflow-y:auto;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.msg{
+  max-width:80%;
+  padding:10px 14px;
+  border-radius:14px;
+  line-height:1.4;
+  white-space:pre-line;
+}
+.user{background:#2563eb;align-self:flex-end}
+.bot{background:#1f2937;align-self:flex-start}
+#inputArea{
+  position:sticky;
+  bottom:0;
+  background:#0f1b33;
+  padding:10px;
+  display:flex;
+  gap:8px;
+}
+#q{
+  flex:1;
+  padding:12px;
+  border-radius:25px;
+  border:none;
+  outline:none;
+  font-size:15px;
+}
+button{
+  background:#22c55e;
+  border:none;
+  color:white;
+  padding:0 18px;
+  border-radius:25px;
+  font-weight:600;
+}
+#suggest{
+  display:flex;
+  gap:6px;
+  padding:6px;
+  overflow-x:auto;
+}
+.sug{
+  background:#1e293b;
+  padding:6px 12px;
+  border-radius:20px;
+  font-size:13px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+</style>
+</head>
+<body>
+<header>Factory Production AI</header><div id="chat"></div>
+<div id="suggest"></div><div id="inputArea">
+<input id="q" placeholder="প্রশ্ন লিখুন... যেমন: sill 590" />
+<button onclick="send()">Send</button>
+</div><script>
+const chat=document.getElementById("chat");
+const suggest=document.getElementById("suggest");
+
+const quick=["sill 590","3 feb cpb","total dyeing","party RB design"];
+quick.forEach(t=>{
+  const d=document.createElement("div");
+  d.className="sug";
+  d.innerText=t;
+  d.onclick=()=>{document.getElementById("q").value=t;send();};
+  suggest.appendChild(d);
+});
+
+function add(text,type){
+  const div=document.createElement("div");
+  div.className="msg "+type;
+  div.innerText=text;
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+async function send(){
+  const input=document.getElementById("q");
+  const text=input.value.trim();
+  if(!text) return;
+  add(text,"user");
+  input.value="";
+  add("...","bot");
+  const loading=chat.lastChild;
+  try{
+    const r=await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:text})});
+    const j=await r.json();
+    loading.innerText=j.reply||"No reply";
+  }catch{
+    loading.innerText="Server error";
+  }
+}
+</script></body>
+</html>
