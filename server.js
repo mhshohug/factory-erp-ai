@@ -3,10 +3,10 @@ const axios = require("axios");
 const cors = require("cors");
 const moment = require("moment");
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static(__dirname));
+const router = express.Router();
+router.use(cors());
+router.use(express.json());
+router.use(express.static(__dirname));
 
 const SHEET_ID = "1-2U7bkuP1cPK9EgCzksYkeOUz0LGexCZQI-oeVmDEmw";
 
@@ -61,9 +61,8 @@ function getParsedDate(q){
     return moment(`${match[1]} ${match[2]} ${year}`,"D MMM YYYY").format("DD-MMM-YYYY");
 }
 
-
 // ================= ASK =================
-app.post("/ask", async (req,res)=>{
+router.post("/ask", async (req,res)=>{
 
 const q=(req.body.question||"").toLowerCase().trim();
 const sheets=await Promise.all(Object.values(GID_MAP).map(fetchSheet));
@@ -75,7 +74,6 @@ return roll.reduce((a,r)=>(
 : a
 ),0);
 };
-
 
 /* ================= NEW AI FEATURES START ================= */
 // ===== SMART PARTY SEARCH (ANY WORD MATCH + LAST 15) =====
@@ -89,7 +87,6 @@ if(!q.match(/\d/) && q.length>=2){
 
     let input=normalizeName(q);
 
-    // find party containing the typed word
     let bestMatch=uniqueParties.find(p=>{
         let np=normalizeName(p);
         return np.includes(input);
@@ -107,14 +104,14 @@ if(!q.match(/\d/) && q.length>=2){
             let sill=r[2]||"N/A";
             let quality=r[4]||"N/A";
             let lot=parseFloat((r[6]||"").replace(/,/g,''))||0;
-let rolling=getRollingBySill((r[2]||"").trim());
-let diff=rolling-lot;
+            let rolling=getRollingBySill((r[2]||"").trim());
+            let diff=rolling-lot;
 
-let status=diff>=0
-? `Extra ${Math.abs(diff).toLocaleString()}`
-: `Short ${Math.abs(diff).toLocaleString()}`;
+            let status=diff>=0
+            ? `Extra ${Math.abs(diff).toLocaleString()}`
+            : `Short ${Math.abs(diff).toLocaleString()}`;
 
-reply+=`🔹 Sill ${r[2]} | ${r[4]} | Lot ${lot.toLocaleString()} | Roll ${rolling.toLocaleString()} | ${status} yds\n`;
+            reply+=`🔹 Sill ${r[2]} | ${r[4]} | Lot ${lot.toLocaleString()} | Roll ${rolling.toLocaleString()} | ${status} yds\n`;
         });
 
         reply+=`\n📊 Showing ${last15.length} of ${rows.length} entries`;
@@ -261,8 +258,7 @@ return res.json({reply:`🌍 **Monthly Dyeing Report**\n━━━━━━━━
 return res.json({reply:`🌍 **Monthly Grand Total**\n━━━━━━━━━━━━━━━━\n🔹 Singing: ${t.s.toLocaleString()} yds\n🔹 Marcerise: ${t.m.toLocaleString()} yds\n🔹 CPB: ${t.c.toLocaleString()} yds\n🔹 Jet: ${t.j.toLocaleString()} yds\n🔹 Jigger: ${t.jg.toLocaleString()} yds\n✅ **Total Rolling: ${t.r.toLocaleString()} yds`});
 }
 
-// ===== SMART DIRECT SEARCH (sill/party + section) =====
-
+// ===== SMART DIRECT SEARCH =====
 const secDetect=(q)=>{
 if(/cpb/.test(q)) return "cpb";
 if(/\bjet\b/.test(q)) return "jet";
@@ -280,7 +276,6 @@ if(sectionKey){
 const sectionMap={singing:sing,marcerise:marc,cpb:cpb,jet:jet,jigger:jig,rolling:roll};
 const rows=sectionMap[sectionKey];
 
-// ===== SILL + SECTION =====
 let sMatch=q.match(/\b\d{3,4}\b/);
 if(sMatch){
 
@@ -312,53 +307,9 @@ ${lines.join("\n")}
 📍 Total ${sectionKey.toUpperCase()}: ${total.toLocaleString()} yds`});
 }
 
-
-// ===== PARTY + SECTION =====
-let partyRows=grey.filter(r=>clean(r[3]).includes(clean(q.replace(sectionKey,''))));
-
-if(partyRows.length){
-
-let total=0,lines=[];
-let map={};
-
-rows.forEach(r=>{
-let sill=r[1];
-let g=grey.find(gr=>(gr[2]||"").trim()===sill);
-if(!g) return;
-
-let party=g[3]||"";
-if(!clean(party).includes(partyWord)) return;
-
-let date=normalizeSheetDate(r[0]);
-let lot=parseFloat((g[6]||"").replace(/,/g,''))||0;
-
-let vIdx=(sectionKey==="singing"||sectionKey==="marcerise")?8:(sectionKey==="jet"||sectionKey==="cpb"?6:7);
-let val=parseFloat((r[vIdx]||"").replace(/,/g,''))||0;
-if(val<=0) return;
-
-let key=sill;
-
-if(!map[key])
-map[key]={date,sill,lot,val:0};
-
-map[key].val+=val;
-});
-
-Object.values(map).forEach(d=>{
-lines.push(`🔹 Sill ${d.sill} | Lot ${d.lot.toLocaleString()} | ${d.val.toLocaleString()} yds`);
-total+=d.val;
-});
-
-if(lines.length)
-return res.json({reply:`📊 ${sectionKey.toUpperCase()} Production — ${partyRows[0][3].toUpperCase()}
-━━━━━━━━━━━━━━━━
-${lines.slice(-15).join("\n")}
-
-📍 Total ${sectionKey.toUpperCase()}: ${total.toLocaleString()} yds`});
 }
 
-}
 res.json({reply:"Sill নম্বর বা তারিখ (e.g. 3 feb jet / kal cpb) লিখে সার্চ দিন ওস্তাদ!"});
 });
 
-app.listen(3000,()=>console.log("Server running!"));
+module.exports = router;    
